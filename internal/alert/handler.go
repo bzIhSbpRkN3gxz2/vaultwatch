@@ -1,6 +1,10 @@
 package alert
 
-import "github.com/user/vaultwatch/internal/lease"
+import (
+	"errors"
+
+	"github.com/user/vaultwatch/internal/lease"
+)
 
 // Handler is implemented by any type that can receive a lease alert.
 type Handler interface {
@@ -8,7 +12,7 @@ type Handler interface {
 }
 
 // MultiHandler dispatches an alert to multiple handlers in order.
-// It continues on error and returns the last non-nil error.
+// It continues on error and returns a joined error combining all non-nil errors.
 type MultiHandler struct {
 	handlers []Handler
 }
@@ -19,12 +23,13 @@ func NewMultiHandler(handlers ...Handler) *MultiHandler {
 }
 
 // OnAlert calls OnAlert on each underlying handler.
+// All handlers are invoked regardless of errors; all errors are joined and returned.
 func (m *MultiHandler) OnAlert(l *lease.Lease) error {
-	var lastErr error
+	var errs []error
 	for _, h := range m.handlers {
 		if err := h.OnAlert(l); err != nil {
-			lastErr = err
+			errs = append(errs, err)
 		}
 	}
-	return lastErr
+	return errors.Join(errs...)
 }
