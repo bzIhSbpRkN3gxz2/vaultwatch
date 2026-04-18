@@ -1,6 +1,9 @@
 package lease
 
-import "time"
+import (
+	"fmt"
+	"time"
+)
 
 // Status represents the health state of a lease.
 type Status string
@@ -12,41 +15,48 @@ const (
 	StatusOrphaned Status = "orphaned"
 )
 
-// Lease holds metadata about a Vault secret lease.
+func (s Status) String() string { return string(s) }
+
+// Lease holds metadata about a single Vault secret lease.
 type Lease struct {
-	ID          string
-	Path        string
-	Renewable   bool
-	TTL         time.Duration
-	ExpireTime  time.Time
-	CreatedTime time.Time
+	ID        string
+	Path      string
+	ExpiresAt time.Time
+	Orphaned  bool
 }
 
-// Status returns the current health status of the lease.
-func (l *Lease) Status(warnThreshold time.Duration) Status {
-	now := time.Now()
+// New constructs a Lease.
+func New(id, path string, expiresAt time.Time, orphaned bool) *Lease {
+	return &Lease{
+		ID:        id,
+		Path:      path,
+		ExpiresAt: expiresAt,
+		Orphaned:  orphaned,
+	}
+}
 
-	if l.ExpireTime.IsZero() {
+// Status evaluates the current state of the lease.
+// warnThreshold is how far in the future expiry must be to be considered healthy.
+func (l *Lease) Status(warnThreshold time.Duration) Status {
+	if l.Orphaned {
 		return StatusOrphaned
 	}
-	if now.After(l.ExpireTime) {
+	ttl := time.Until(l.ExpiresAt)
+	switch {
+	case ttl <= 0:
 		return StatusExpired
-	}
-	if l.ExpireTime.Sub(now) <= warnThreshold {
+	case ttl < warnThreshold:
 		return StatusExpiring
+	default:
+		return StatusHealthy
 	}
-	return StatusHealthy
 }
 
-// TimeRemaining returns the duration until the lease expires.
-// Returns 0 if already expired.
-func (l *Lease) TimeRemaining() time.Duration {
-	if l.ExpireTime.IsZero() {
-		return 0
+// TTL returns a human-readable remaining duration string.
+func (l *Lease) TTL() string {
+	ttl := time.Until(l.ExpiresAt)
+	if ttl <= 0 {
+		return "expired"
 	}
-	remaining := time.Until(l.ExpireTime)
-	if remaining < 0 {
-		return 0
-	}
-	return remaining
+	return fmt.Sprintf("%v", ttl.Truncate(time.Second))
 }
