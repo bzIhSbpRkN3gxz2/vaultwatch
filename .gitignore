@@ -1,0 +1,13 @@
+# Go
+
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+*.test
+coverage.txt
+*~
+.DS_Store
+vendor/
