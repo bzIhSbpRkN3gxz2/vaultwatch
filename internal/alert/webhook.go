@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -52,7 +53,10 @@ func (w *WebhookHandler) OnAlert(l *lease.Lease) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("webhook: unexpected status %d", resp.StatusCode)
+		// Read a limited portion of the response body to include in the error
+		// for easier debugging without risking unbounded memory consumption.
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 256))
+		return fmt.Errorf("webhook: unexpected status %d: %s", resp.StatusCode, bytes.TrimSpace(respBody))
 	}
 	return nil
 }
