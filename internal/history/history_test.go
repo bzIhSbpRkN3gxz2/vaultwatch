@@ -56,3 +56,20 @@ func TestRecord_IsolatedPerLease(t *testing.T) {
 		t.Error("events should be isolated per lease ID")
 	}
 }
+
+func TestRecord_OrderPreserved(t *testing.T) {
+	tr := history.New(10)
+	tr.Record("lease-3", lease.StatusHealthy, lease.StatusExpiring)
+	tr.Record("lease-3", lease.StatusExpiring, lease.StatusExpired)
+
+	events := tr.Get("lease-3")
+	if len(events) != 2 {
+		t.Fatalf("expected 2 events, got %d", len(events))
+	}
+	if events[0].From != lease.StatusHealthy || events[0].To != lease.StatusExpiring {
+		t.Errorf("first event out of order: %v -> %v", events[0].From, events[0].To)
+	}
+	if events[1].From != lease.StatusExpiring || events[1].To != lease.StatusExpired {
+		t.Errorf("second event out of order: %v -> %v", events[1].From, events[1].To)
+	}
+}
