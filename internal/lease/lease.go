@@ -60,3 +60,8 @@ func (l *Lease) TTL() string {
 	}
 	return fmt.Sprintf("%v", ttl.Truncate(time.Second))
 }
+
+// IsExpired reports whether the lease has passed its expiry time.
+func (l *Lease) IsExpired() bool {
+	return !l.Orphaned && !l.ExpiresAt.IsZero() && time.Now().After(l.ExpiresAt)
+}
