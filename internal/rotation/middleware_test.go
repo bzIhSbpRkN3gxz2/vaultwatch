@@ -74,3 +74,26 @@ func TestGuard_BlocksConcurrentRotation(t *testing.T) {
 		t.Errorf("expected ErrAlreadyRotating, got %v", err)
 	}
 }
+
+// TestGuard_StatusInProgressDuringRotation verifies that the tracker reflects
+// StatusInProgress while the inner rotation function is executing.
+func TestGuard_StatusInProgressDuringRotation(t *testing.T) {
+	tr := rotation.New()
+	l := lease.New("g-lease-4", "secret/db", 120)
+
+	fn := rotation.Guard(tr, func(ctx context.Context, l *lease.Lease) error {
+		r, ok := tr.Get(l.LeaseID)
+		if !ok {
+			t.Error("expected record to exist during rotation")
+			return nil
+		}
+		if r.Status != rotation.StatusInProgress {
+			t.Errorf("expected StatusInProgress during rotation, got %v", r.Status)
+		}
+		return nil
+	})
+
+	if err := fn(context.Background(), l); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
