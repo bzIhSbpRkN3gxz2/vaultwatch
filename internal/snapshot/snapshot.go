@@ -70,3 +70,25 @@ func (s *Store) TTLDecreased(leaseID string, current time.Duration) bool {
 	}
 	return current < e.TTL
 }
+
+// Len returns the number of entries currently held in the store.
+func (s *Store) Len() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.entries)
+}
+
+// Expiring returns all entries whose recorded TTL is below the given threshold.
+// This is useful for surfacing leases that are approaching expiry without
+// having been renewed.
+func (s *Store) Expiring(threshold time.Duration) []Entry {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var out []Entry
+	for _, e := range s.entries {
+		if e.TTL < threshold {
+			out = append(out, e)
+		}
+	}
+	return out
+}
