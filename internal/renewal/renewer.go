@@ -56,6 +56,10 @@ func (r *Renewer) MaybeRenew(ctx context.Context, l *lease.Lease) (bool, error) 
 	}
 
 	newTTL := time.Duration(secret.LeaseDuration) * time.Second
+	if newTTL == 0 {
+		return true, fmt.Errorf("renew lease %s: server returned zero TTL", l.LeaseID)
+	}
+
 	r.logger.Printf("renewed lease %s: new TTL %s", l.LeaseID, newTTL)
 	l.TTL = newTTL
 	return true, nil
