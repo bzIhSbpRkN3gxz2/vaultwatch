@@ -40,6 +40,7 @@ func (d *Dispatcher) Dispatch(ctx context.Context, l *lease.Lease) (bool, error)
 
 // DispatchAll dispatches alerts for a slice of leases.
 // Returns the count of dispatched alerts and the first error encountered.
+// Dispatch continues for remaining leases even if an error occurs.
 func (d *Dispatcher) DispatchAll(ctx context.Context, leases []*lease.Lease) (int, error) {
 	var firstErr error
 	count := 0
@@ -53,4 +54,11 @@ func (d *Dispatcher) DispatchAll(ctx context.Context, leases []*lease.Lease) (in
 		}
 	}
 	return count, firstErr
+}
+
+// Reset clears the throttle state for a specific lease, allowing the next
+// Dispatch call for that lease to bypass suppression regardless of timing.
+func (d *Dispatcher) Reset(leaseID string) {
+	d.throttle.Reset(leaseID)
+	d.logger.Printf("throttle reset for lease %s", leaseID)
 }
